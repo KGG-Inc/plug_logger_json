@@ -8,7 +8,42 @@ A comprehensive JSON logger Plug.
 ## Dependencies
 
 * Plug
-* Poison
+
+## SwayDM Changes
+Poison was removed from this library.  The log messages now output only "Phoenix Request Log", and
+all other data captured in the plug is passed as metadata attributes.
+
+Also, the duration of the request is now measured using System.monotonic(:nanosecond), rather than
+:os time.  This should be more accurate.
+
+## Metadata
+All captured metadata is under the :plug metadata attribute.
+```
+[
+    plug: %{
+            duration_nano: 34624763,
+            phoenix: %{
+                method: "GET",
+                path: "/wallet",
+                status: 200,
+                controller: "SwayDMWeb.WalletController",
+                action: "show"
+            },
+            
+            # If opts[:include_debug_logging] == true
+            remote_ip: "127.0.0.1",
+            x_forwarded_for: "12.13.14.15",
+            client_version: "Mozilla/5.0 (Macinto...",
+            params: %{...},
+            
+            # Phoenix Attributes
+            
+            
+            # Extra Attributes
+            
+    }
+]
+```
 
 ## Elixir & Erlang Support
 

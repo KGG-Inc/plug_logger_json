@@ -119,7 +119,6 @@ defmodule Plug.LoggerJSON do
       conn
       |> basic_logging(start)
       |> Map.merge(debug_logging(conn, opts))
-      |> Map.merge(phoenix_attributes(conn))
       |> Map.merge(extra_attributes(conn, opts))
 
     Logger.log(level, "Phoenix Request Log", plug: plug_metadata_map)
@@ -136,10 +135,17 @@ defmodule Plug.LoggerJSON do
       phoenix: %{
         method: conn.method,
         path: conn.request_path,
-        status: conn.status
+        status: conn.status,
+        controller: phoenix_controller(conn),
+        action: phoenix_action(conn)
       }
     }
   end
+
+  defp phoenix_controller(%{private: %{phoenix_controller: controller}}), do: controller
+  defp phoenix_controller(_), do: nil
+  defp phoenix_action(%{private: %{phoenix_action: action}}), do: action
+  defp phoenix_action(_), do: nil
 
   defp extra_attributes(conn, opts) do
     case Keyword.get(opts, :extra_attributes_fn) do
@@ -168,16 +174,28 @@ defmodule Plug.LoggerJSON do
         req_headers = format_map_list(conn.req_headers)
 
         %{
-          "remote_ip" => conn.remote_ip,
-          "x_forwarded_for" => format_ip(Map.get(req_headers, "x-forwarded-for", "N/A")),
-          "client_version" => client_version(req_headers),
-          "params" => format_map_list(conn.params)
+          remote_ip: format_remote_ip(conn.remote_ip),
+          x_forwarded_for: format_ip(Map.get(req_headers, "x-forwarded-for", "N/A")),
+          client_version: client_version(req_headers),
+          params: format_map_list(conn.params)
         }
 
       _ ->
         %{}
     end
   end
+
+  defp format_remote_ip(remote_ip) when is_tuple(remote_ip) do
+    remote_ip
+    |> Tuple.to_list()
+    |> format_remote_ip()
+  end
+
+  defp format_remote_ip(remote_ip) when is_list(remote_ip) do
+    Enum.join(remote_ip, ".")
+  end
+
+  defp format_remote_ip(remote_ip), do: remote_ip
 
   @spec filter_values(struct(), [binary()]) :: binary()
   defp filter_values(%{__struct__: mod} = struct, filters) when is_atom(mod) do
@@ -234,15 +252,6 @@ defmodule Plug.LoggerJSON do
       zero_pad(month, 2) <>
       "-" <>
       zero_pad(day, 2) <> "T" <> zero_pad(hour, 2) <> ":" <> zero_pad(minute, 2) <> ":" <> zero_pad(second, 2) <> "Z"
-  end
-
-  @spec phoenix_attributes(map()) :: map()
-  defp phoenix_attributes(%{private: %{phoenix_controller: controller, phoenix_action: action}}) do
-    %{"handler" => "#{controller}##{action}"}
-  end
-
-  defp phoenix_attributes(_) do
-    %{"handler" => "N/A"}
   end
 
   @spec zero_pad(1..3_000, non_neg_integer()) :: String.t()
