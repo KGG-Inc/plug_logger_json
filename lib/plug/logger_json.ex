@@ -83,7 +83,7 @@ defmodule Plug.LoggerJSON do
 
   def call(conn, opts) do
     level = Keyword.get(opts, :log, :info)
-    start = :os.timestamp()
+    start = System.monotonic_time(:nanosecond)
 
     Conn.register_before_send(conn, fn conn ->
       :ok = log(conn, level, start, opts)
@@ -110,40 +110,35 @@ defmodule Plug.LoggerJSON do
           "message" => Exception.format(kind, reason, stacktrace),
           "request_id" => Logger.metadata()[:request_id]
         }
-        |> Poison.encode!()
       end)
   end
 
   @spec log_message(Plug.Conn.t(), atom(), time(), opts) :: atom()
   defp log_message(conn, level, start, opts) do
-    Logger.log(level, fn ->
+    plug_metadata_map =
       conn
       |> basic_logging(start)
       |> Map.merge(debug_logging(conn, opts))
       |> Map.merge(phoenix_attributes(conn))
       |> Map.merge(extra_attributes(conn, opts))
-      |> Poison.encode!()
-    end)
+
+    Logger.log(level, "Phoenix Request Log", plug: plug_metadata_map)
+  rescue
+    error ->
+      Logger.error(Exception.format(:error, error, __STACKTRACE__))
   end
 
   defp basic_logging(conn, start) do
-    stop = :os.timestamp()
-    duration = :timer.now_diff(stop, start)
-    req_id = Logger.metadata()[:request_id]
-    req_headers = format_map_list(conn.req_headers)
+    duration = abs(System.monotonic_time(:nanosecond) - start)
 
-    log_json = %{
-      "api_version" => Map.get(req_headers, "accept", "N/A"),
-      "date_time" => iso8601(:calendar.now_to_datetime(:os.timestamp())),
-      "duration" => Float.round(duration / 1000, 3),
-      "log_type" => "http",
-      "method" => conn.method,
-      "path" => conn.request_path,
-      "request_id" => req_id,
-      "status" => conn.status
+    %{
+      duration_nano: duration,
+      phoenix: %{
+        method: conn.method,
+        path: conn.request_path,
+        status: conn.status
+      }
     }
-
-    Map.drop(log_json, Application.get_env(:plug_logger_json, :suppressed_keys, []))
   end
 
   defp extra_attributes(conn, opts) do
@@ -173,7 +168,8 @@ defmodule Plug.LoggerJSON do
         req_headers = format_map_list(conn.req_headers)
 
         %{
-          "client_ip" => format_ip(Map.get(req_headers, "x-forwarded-for", "N/A")),
+          "remote_ip" => conn.remote_ip,
+          "x_forwarded_for" => format_ip(Map.get(req_headers, "x-forwarded-for", "N/A")),
           "client_version" => client_version(req_headers),
           "params" => format_map_list(conn.params)
         }
