@@ -34,13 +34,7 @@ All captured metadata is under the :plug metadata attribute.
             remote_ip: "127.0.0.1",
             x_forwarded_for: "12.13.14.15",
             client_version: "Mozilla/5.0 (Macinto...",
-            params: %{...},
-            
-            # Phoenix Attributes
-            
-            
-            # Extra Attributes
-            
+            params: %{...},            
     }
 ]
 ```
