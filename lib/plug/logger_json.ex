@@ -53,7 +53,7 @@ defmodule Plug.LoggerJSON do
   In this example, the `:user_id` is retrieved from `conn.assigns.user.user_id`
   and added to the log if it exists. In the example, any values that are `nil`
   are filtered from the map. It is a requirement that the value is
-  serialiazable as JSON by the Poison library, otherwise an error will be raised
+  serializable as JSON by the Poison library, otherwise an error will be raised
   when attempting to encode the value.
   """
 
@@ -121,7 +121,19 @@ defmodule Plug.LoggerJSON do
       |> Map.merge(debug_logging(conn, opts))
       |> Map.merge(extra_attributes(conn, opts))
 
-    Logger.log(level, "Phoenix Request Log", plug: plug_metadata_map)
+    %{
+      duration: duration,
+      phoenix: %{
+        method: method,
+        status: status,
+        controller: controller,
+        action: action
+      }
+    } = plug_metadata_map
+
+    Logger.log(level, "Phoenix Request Log: duration:#{duration} ns, action:#{controller}:#{action}",
+      plug: plug_metadata_map
+    )
   rescue
     error ->
       Logger.error(Exception.format(:error, error, __STACKTRACE__))
