@@ -121,15 +121,12 @@ defmodule Plug.LoggerJSON do
       |> Map.merge(debug_logging(conn, opts))
       |> Map.merge(extra_attributes(conn, opts))
 
-    %{
-      duration: duration,
-      phoenix: %{
-        method: method,
-        status: status,
-        controller: controller,
-        action: action
-      }
-    } = plug_metadata_map
+
+    duration = plug_metadata_map[:duration_nano]
+    method = plug_metadata_map[:phoenix][:method]
+    status = plug_metadata_map[:phoenix][:status]
+    controller = plug_metadata_map[:phoenix][:controller]
+    action = plug_metadata_map[:phoenix][:action]
 
     Logger.log(level, "Phoenix Request Log: duration:#{duration} ns, action:#{controller}:#{action}",
       plug: plug_metadata_map
