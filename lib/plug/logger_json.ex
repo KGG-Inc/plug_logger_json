@@ -128,6 +128,9 @@ defmodule Plug.LoggerJSON do
     controller = plug_metadata_map[:phoenix][:controller]
     action = plug_metadata_map[:phoenix][:action]
 
+    require IEx
+    IEx.pry()
+
     Logger.log(level, "Phoenix Request Log: duration:#{duration} ns, action:#{controller}:#{action}",
       plug: plug_metadata_map
     )
@@ -166,8 +169,16 @@ defmodule Plug.LoggerJSON do
 
   defp headers(conn, opts) do
     if Keyword.get(opts, :log_headers, false) do
+      filtered_headers =
+        conn.req_headers
+        |> Map.new()
+        |> format_map_list()
+
+      require IEx
+      IEx.pry()
+
       %{
-        headers: format_map_list(conn.req_headers)
+        headers: filtered_headers
       }
     else
       %{}
