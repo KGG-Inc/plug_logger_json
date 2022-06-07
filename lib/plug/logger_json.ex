@@ -106,9 +106,9 @@ defmodule Plug.LoggerJSON do
     _ =
       Logger.log(:error, fn ->
         %{
-          "log_type" => "error",
-          "message" => Exception.format(kind, reason, stacktrace),
-          "request_id" => Logger.metadata()[:request_id]
+          log_type: "error",
+          message: Exception.format(kind, reason, stacktrace),
+          request_id: Logger.metadata()[:request_id]
         }
       end)
   end
@@ -120,7 +120,7 @@ defmodule Plug.LoggerJSON do
       |> basic_logging(start)
       |> Map.merge(debug_logging(conn, opts))
       |> Map.merge(extra_attributes(conn, opts))
-
+      |> Map.merge(headers(conn, opts))
 
     duration = plug_metadata_map[:duration_nano]
     method = plug_metadata_map[:phoenix][:method]
@@ -146,7 +146,8 @@ defmodule Plug.LoggerJSON do
         path: conn.request_path,
         status: conn.status,
         controller: phoenix_controller(conn),
-        action: phoenix_action(conn)
+        action: phoenix_action(conn),
+        request_id: Logger.metadata()[:request_id]
       }
     }
   end
@@ -160,6 +161,29 @@ defmodule Plug.LoggerJSON do
     case Keyword.get(opts, :extra_attributes_fn) do
       fun when is_function(fun) -> fun.(conn)
       _ -> %{}
+    end
+  end
+
+  defp headers(conn, opts) do
+    if Keyword.get(opts, :log_headers, false) do
+      %{
+        headers: format_map_list(conn.req_headers)
+      }
+    else
+      %{}
+    end
+  end
+
+  @spec client_version(%{String.t() => String.t()}) :: String.t()
+  defp client_version(headers) do
+    headers
+    |> Map.get("x-client-version", "N/A")
+    |> case do
+      "N/A" ->
+        Map.get(headers, "user-agent", "N/A")
+
+      accept_value ->
+        accept_value
     end
   end
 
