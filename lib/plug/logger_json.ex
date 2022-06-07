@@ -121,15 +121,13 @@ defmodule Plug.LoggerJSON do
       |> Map.merge(debug_logging(conn, opts))
       |> Map.merge(extra_attributes(conn, opts))
       |> Map.merge(headers(conn, opts))
+      |> Map.merge(params(conn, opts))
 
     duration = plug_metadata_map[:duration_nano]
     method = plug_metadata_map[:phoenix][:method]
     status = plug_metadata_map[:phoenix][:status]
     controller = plug_metadata_map[:phoenix][:controller]
     action = plug_metadata_map[:phoenix][:action]
-
-    require IEx
-    IEx.pry()
 
     Logger.log(level, "Phoenix Request Log: duration:#{duration} ns, action:#{controller}:#{action}",
       plug: plug_metadata_map
@@ -174,11 +172,23 @@ defmodule Plug.LoggerJSON do
         |> Map.new()
         |> format_map_list()
 
-      require IEx
-      IEx.pry()
-
       %{
         headers: filtered_headers
+      }
+    else
+      %{}
+    end
+  end
+
+  defp params(conn, opts) do
+    if Keyword.get(opts, :log_params, false) do
+      filtered_params =
+        conn.params
+        |> Map.new()
+        |> format_map_list()
+
+      %{
+        params: filtered_params
       }
     else
       %{}
@@ -220,8 +230,7 @@ defmodule Plug.LoggerJSON do
         %{
           remote_ip: format_remote_ip(conn.remote_ip),
           x_forwarded_for: format_ip(Map.get(req_headers, "x-forwarded-for", "N/A")),
-          client_version: client_version(req_headers),
-          params: format_map_list(conn.params)
+          client_version: client_version(req_headers)
         }
 
       _ ->
